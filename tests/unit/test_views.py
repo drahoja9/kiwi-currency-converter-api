@@ -7,7 +7,8 @@ from flask.testing import FlaskClient
 
 from api.converter import CurrencyConverter
 from api.currencies import CurrencyResource
-from api.exceptions import FixerApiException, CustomException, UnknownSymbolException, UnknownCurrencyException
+from api.exceptions import FixerApiException, CustomException, UnknownSymbolException, UnknownCurrencyException, \
+    InvalidAmountException
 
 
 # ------------------------------------------------------ Mocks --------------------------------------------------------
@@ -46,13 +47,15 @@ def mock_currency_converter(monkeypatch: MonkeyPatch):
 
 
 def mock_exception(monkeypatch: MonkeyPatch, exception_type: Type[CustomException]):
-    class MockedException(exception_type):
-        def __init__(self):
-            self.logger_msg = 'logger_msg'
-            self.display_msg = 'display_msg'
+    monkeypatch.setattr(exception_type, '__init__', lambda self, *args: None)
+    exception_type.logger_msg = 'logger_msg'
+    exception_type.display_msg = 'display_msg'
 
+
+def mock_raising_exception(monkeypatch: MonkeyPatch, exception_type: Type[CustomException]):
     def mocked_get():
-        raise MockedException()
+        mock_exception(monkeypatch, exception_type)
+        raise exception_type
 
     monkeypatch.setattr(CurrencyResource, 'get_supported_currencies', mocked_get)
 
@@ -96,7 +99,7 @@ def test_supported_currencies(test_client: FlaskClient, mock_currency_resource):
         'input_currency': '123',
         'output_currency': ['!@$%^*()', '_}{":?><']
     }),
-    ('abcd -- not a float', '&&&&&&&&&&&', '///////\\\\\\\\??????????', {
+    ('0.0000000000000001e16', '&&&&&&&&&&&', '///////\\\\\\\\??????????', {
         'amount': 1.00,
         'input_currency': '',
         'output_currency': ['///////\\\\\\\\??????????']
@@ -141,8 +144,8 @@ def test_convert_symbols(test_client: FlaskClient, mock_currency_converter):
     assert MockedCurrencyConverter.output_currency == ['TRY', 'RUB', 'NGN', 'BTC']
 
 
-def test_fixer_api_exception_handler(test_client: FlaskClient, monkeypatch: MonkeyPatch, caplog):
-    mock_exception(monkeypatch, FixerApiException)
+def test_fixer_api_error(test_client: FlaskClient, monkeypatch: MonkeyPatch, caplog):
+    mock_raising_exception(monkeypatch, FixerApiException)
     response = test_client.get('/supported_currencies')
     assert response.status_code == 500
     assert caplog.record_tuples == [
@@ -151,20 +154,45 @@ def test_fixer_api_exception_handler(test_client: FlaskClient, monkeypatch: Monk
     assert response.data.decode('utf-8') == '<h1>Internal server error</h1>' + 'display_msg'
 
 
-@pytest.mark.parametrize('exception_type', [
-    UnknownSymbolException,
-    UnknownCurrencyException
-])
-def test_unknown_exception_handler(
-        test_client: FlaskClient,
-        monkeypatch: MonkeyPatch,
-        caplog,
-        exception_type
-):
-    mock_exception(monkeypatch, exception_type)
+def test_unknown_currency_error(test_client: FlaskClient, monkeypatch: MonkeyPatch, caplog):
+    mock_raising_exception(monkeypatch, UnknownCurrencyException)
     response = test_client.get('/supported_currencies')
     assert response.status_code == 400
     assert caplog.record_tuples == [
         ('flask.app', logging.WARNING, 'logger_msg'),
+    ]
+    assert response.data.decode('utf-8') == '<h1>Bad request</h1>' + 'display_msg'
+
+
+@pytest.mark.parametrize('parameter', [
+    '?input_currency=@',
+    '?output_currency=%'
+])
+def test_unknown_symbol_error(test_client: FlaskClient, monkeypatch: MonkeyPatch, caplog, parameter: str):
+    mock_exception(monkeypatch, UnknownSymbolException)
+    response = test_client.get(f'/currency_converter{parameter}')
+    assert response.status_code == 400
+    assert caplog.record_tuples == [
+        ('flask.app', logging.WARNING, 'logger_msg'),
+    ]
+    assert response.data.decode('utf-8') == '<h1>Bad request</h1>' + 'display_msg'
+
+
+@pytest.mark.parametrize('amount', [
+    'raz_dva_tri',
+    '1.abcde',
+    '0xFA1B',
+    'one',
+    '1.234ee',
+    '~!@#$%^&*()_+}{|":?><',
+    '\\\\\\\\12\\\\\\',
+    '&input_currency=EUR&output_currency=USD'
+])
+def test_amount_error(test_client: FlaskClient, monkeypatch: MonkeyPatch, caplog, amount: str):
+    mock_exception(monkeypatch, InvalidAmountException)
+    response = test_client.get(f'/currency_converter?amount={amount}')
+    assert response.status_code == 400
+    assert caplog.record_tuples == [
+        ('flask.app', logging.WARNING, 'logger_msg')
     ]
     assert response.data.decode('utf-8') == '<h1>Bad request</h1>' + 'display_msg'

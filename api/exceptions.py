@@ -24,3 +24,10 @@ class UnknownCurrencyException(CustomException):
                        f'`/supported_currencies` for list of supported currencies).')
         logger_msg = f'An error occurred when requesting the Fixer API. URL: {url}, CODE: {code}, INFO: {info}'
         super().__init__(display_msg, logger_msg)
+
+
+class InvalidAmountException(CustomException):
+    def __init__(self, amount: str):
+        display_msg = f'Invalid parameter `amount`. {amount} is not a number'
+        logger_msg = f'Could not convert string {amount} to float'
+        super().__init__(display_msg, logger_msg)
