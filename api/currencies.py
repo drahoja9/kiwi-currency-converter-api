@@ -11,8 +11,7 @@ class CurrencyResource:
     @classmethod
     def _dispatch_request(cls, url: str, params: Dict[str, str]) -> requests.Response:
         access_key = app.config['FIXER_API_KEY']
-        params.update({'access_key': access_key})
-        response = requests.get(url, params=params)
+        response = requests.get(url, params={**params, 'access_key': access_key})
         cls._check_response(response.json(), url)
         return response
 

@@ -15,9 +15,9 @@ from api.converter import CurrencyConverter
 def mock_currency_resource(monkeypatch: MonkeyPatch):
     def mocked_get(input_currency: str, output_currencies: List[str]) -> dict:
         return {
-            'USD': Decimal(1.138),
+            'USD': Decimal(1.1),
             'GBP': Decimal(0.896032),
-            'CZK': Decimal(25.4183)
+            'CZK': Decimal(25.4183),
         }
 
     monkeypatch.setattr(CurrencyResource, 'get_currency_rates', mocked_get)
@@ -27,11 +27,9 @@ def mock_currency_resource(monkeypatch: MonkeyPatch):
 
 
 def test_convert(test_app: Flask, mock_currency_resource):
-    result = CurrencyConverter.convert(33.65734, 'EUR', ['USD', 'GBP', 'CZK'])
+    result = CurrencyConverter.convert(2.2, 'EUR', ['USD', 'GBP', 'CZK'])
     assert result == {
-        'USD': 38.30,
-        'GBP': 30.16,
-        'CZK': 855.51
+        'USD': 2.42,
+        'GBP': 1.97,
+        'CZK': 55.92
     }
-
-# TODO: Some crazy arithmetics (edge cases, etc...)
