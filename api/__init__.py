@@ -14,7 +14,7 @@ import sentry_sdk
 from sentry_sdk.integrations.flask import FlaskIntegration
 
 
-def _load_config(app: Flask, testing_config: dict):
+def _load_config(app: Flask):
     config = {
         'development': 'api.config.DevelopmentConfig',
         'testing': 'api.config.TestingConfig',
@@ -25,9 +25,6 @@ def _load_config(app: Flask, testing_config: dict):
         raise ValueError('Invalid FLASK_ENV environment variable!')
     # Loading configuration from config.py depending on FLASK_ENV environment variable (e.g. passed through Docker)
     app.config.from_object(config[flask_env])
-    # When testing_config is present, override any previous configuration
-    if testing_config:
-        app.config.from_mapping(testing_config)
 
 
 def _set_sentry(app: Flask):
@@ -36,10 +33,10 @@ def _set_sentry(app: Flask):
         sentry_sdk.init(dsn=sentry_dsn, integrations=[FlaskIntegration()])
 
 
-def create_app(testing_config: dict = None):
+def create_app():
     app = Flask(__name__)
 
-    _load_config(app, testing_config)
+    _load_config(app)
     _set_sentry(app)
 
     from api.views import currency_converter_bp
