@@ -103,6 +103,11 @@ def test_supported_currencies(test_client: FlaskClient, mock_currency_resource):
         'amount': 1.00,
         'input_currency': '',
         'output_currency': ['///////\\\\\\\\??????????']
+    }),
+    ('', 'czk', 'rub,eur,php,jpy', {
+        'amount': 1.00,
+        'input_currency': 'CZK',
+        'output_currency': ['RUB', 'EUR', 'PHP', 'JPY']
     })
 ])
 def test_convert(

@@ -16,11 +16,11 @@ currency_converter_bp = Blueprint('currency_converter', __name__)
 
 def _translate_symbol(symbol: str) -> str:
     if len(symbol) != 1:
-        return symbol
+        return symbol.upper()
     translated = app.config['CURRENCY_SYMBOLS'].get(symbol)
     if translated is None:
         raise UnknownSymbolException(symbol)
-    return translated
+    return translated.upper()
 
 
 def _get_amount() -> float:
