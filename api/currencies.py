@@ -33,7 +33,8 @@ class CurrencyResource:
     @classmethod
     def get_currency_rates(cls, input_currency: str, output_currencies: List[str]) -> Dict[str, Decimal]:
         url = app.config['FIXER_LATEST_URL']
-        output_currencies.append(input_currency)
+        if len(output_currencies) > 0:
+            output_currencies.append(input_currency)
         response = cls._dispatch_request(url, {'symbols': ','.join(output_currencies)})
 
         def _from_eur(eur_to_target: str, eur_to_base: str) -> Decimal:

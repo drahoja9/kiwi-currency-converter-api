@@ -38,6 +38,8 @@ def _get_input_currency() -> str:
 
 def _get_output_currency() -> List[str]:
     output_currency = request.args.get('output_currency', default='', type=str)
+    if not output_currency:
+        return []
     output_currency = output_currency.split(',')
     return list(map(_translate_symbol, output_currency))
 

@@ -78,7 +78,12 @@ def test_get_supported_currencies_error(test_app: Flask, mock_response):
     assert e.value.logger_msg == ref_exception.logger_msg
 
 
-def test_get_currency_rates(test_app: Flask, mock_response):
+@pytest.mark.parametrize('output_currencies, fixer_api_symbols', [
+    (['USD', 'CZK', 'EUR'], 'USD,CZK,EUR,GBP'),
+    (['RUB'], 'RUB,GBP'),
+    ([], '')
+])
+def test_get_currency_rates(test_app: Flask, mock_response, output_currencies: str, fixer_api_symbols: str):
     json_data = {
         'success': True,
         'rates': {
@@ -90,7 +95,7 @@ def test_get_currency_rates(test_app: Flask, mock_response):
     }
     MockedResponse._json = json_data
 
-    rates = CurrencyResource.get_currency_rates('GBP', ['USD', 'CZK', 'EUR'])
+    rates = CurrencyResource.get_currency_rates('GBP', output_currencies)
     assert rates == {
         'USD': Decimal('1.270043927002606866931605697'),
         'CZK': Decimal('28.36762526338344738236026116'),
@@ -99,7 +104,7 @@ def test_get_currency_rates(test_app: Flask, mock_response):
     assert MockedResponse.url == current_app.config['FIXER_LATEST_URL']
     assert MockedResponse.params == {
         'access_key': current_app.config['FIXER_API_KEY'],
-        'symbols': 'USD,CZK,EUR,GBP'
+        'symbols': fixer_api_symbols
     }
 
 
