@@ -1,14 +1,20 @@
 dist: xenial
 language: python
 python:
-  - "3.7"
+  - '3.7'
 services:
   - docker
 
 branches:
   only:
-  - master
+    - master
 
+env:
+  global:
+  - FLASK_ENV=testing
+  - FLASK_APP=api:create_app
+  # FIXER_API_KEY for access to the Fixer API
+  - secure: OCyR1vLBh+TE0QPOie1HcXS0Q0QNLCIYaQheRaBet5Z+kzSvoJ6Zp8RTLKQ2fzFxtTGaZcSzXjhX8JbnOxP4MUrTRWX4/QTOk+J97O1opBbMBQPGM7RfEor3scJPoIYGgw1N1jf3vWXr32zKVmvtgQ4gKy53WbsH6AjSjr6OjlrKtmMB7dUhG7u0hQv43JoJXFuH1fdotJxiD8xd5AXyNFsIt1F7wx702Pm4prdO70MKi3L+h9iS1oF1AzGYYuQj8kGWQirxaYCCp22d0bBtZ0g6lqKnv4MedY8sVUQfGGWvZBzfdPsHIfESvMf1PCVL6dqA9OeHTxX7asHy7uWoMtjPmSy2dyFkPR3QAU817FwpwHB/Z5zQPWs8nxhbz2GfrybaHfRja3u84Nh6gfLzJeUVx6nf5+ebHUyaM4qAQpG5BBCkI1ThwK+yYfshPnlZgH/X/mD8IMA+Tzps0xwfljZ6kZiq/wVxGY2uWgpFiwBWP3CSIw6/onAxSgrUIDX+OuQ/0yCjygwgsKBTDYqG78UdSf/9eMbdXCXyN7k3ajMcgl++at8813toZGrutVFmy+edtvEvPi4OEnutzj/uI/FXv6hHho/toF/yXZcsDay22a8zXowDbOHmVaQ+OHkhev1uNy9WEhZwvCCato23lot6zZ2Anmgqo6dXfjNjqYs=
 install:
   - pip install -r requirements.txt
 script: pytest -vv
