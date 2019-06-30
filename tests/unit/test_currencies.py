@@ -200,6 +200,22 @@ def test_get_currency_rates_invalid_currency(test_app: Flask, mock_response):
     }
     MockedSupportedResponse.supported = supported
 
+    # Invalid input currency
+    with pytest.raises(UnknownCurrencyException) as e:
+        CurrencyResource.get_currency_rates('INVALID_CURRENCY', [])
+
+    ref_exception = UnknownCurrencyException('INVALID_CURRENCY')
+    assert e.value.display_msg == ref_exception.display_msg
+    assert e.value.logger_msg == ref_exception.logger_msg
+
+    with pytest.raises(UnknownCurrencyException) as e:
+        CurrencyResource.get_currency_rates('INVALID_CURRENCY', ['CZK', 'EUR'])
+
+    ref_exception = UnknownCurrencyException('INVALID_CURRENCY')
+    assert e.value.display_msg == ref_exception.display_msg
+    assert e.value.logger_msg == ref_exception.logger_msg
+
+    # Invalid output currency
     with pytest.raises(UnknownCurrencyException) as e:
         CurrencyResource.get_currency_rates('GBP', ['SOME', 'NONSENSE'])
 

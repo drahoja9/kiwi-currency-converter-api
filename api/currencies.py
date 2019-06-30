@@ -23,7 +23,7 @@ class CurrencyResource:
             raise FixerApiException(url, code, info)
 
     @classmethod
-    def _check_currencies(cls, currencies: List[str]):
+    def _check_currencies(cls, *currencies: str):
         supported = cls.get_supported_currencies()
         for currency in currencies:
             if currency not in supported.keys():
@@ -40,7 +40,9 @@ class CurrencyResource:
         url = app.config['FIXER_LATEST_URL']
         if len(output_currencies) > 0:
             output_currencies.append(input_currency)
-        cls._check_currencies(output_currencies)
+        else:
+            cls._check_currencies(input_currency)
+        cls._check_currencies(*output_currencies)
         response = cls._dispatch_request(url, {'symbols': ','.join(output_currencies)})
 
         def _from_eur(eur_to_target: str, eur_to_base: str) -> Decimal:
