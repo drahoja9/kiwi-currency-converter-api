@@ -87,12 +87,12 @@ def test_supported_currencies(test_client: FlaskClient, mock_currency_resource):
     ('1', 'PHP', 'JavaScript,£,Python,₹', {
         'amount': 1.00,
         'input_currency': 'PHP',
-        'output_currency': ['JavaScript', 'GBP', 'Python', 'INR']
+        'output_currency': ['JAVASCRIPT', 'GBP', 'PYTHON', 'INR']
     }),
     ('', '', '', {
         'amount': 1.00,
         'input_currency': 'CZK',
-        'output_currency': ['']
+        'output_currency': []
     }),
     ('9999999999999999999999999999999999999999999999999999999999999999999', '123', '!@$%^*(),_}{":?><', {
         'amount': 9999999999999999999999999999999999999999999999999999999999999999999.00,

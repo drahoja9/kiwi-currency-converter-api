@@ -16,7 +16,6 @@ from api.exceptions import FixerApiException, UnknownCurrencyException
 class MockedResponse:
     url = None
     params = None
-    _json = None
 
     @classmethod
     def init(cls, url: str, params: dict):
@@ -25,14 +24,34 @@ class MockedResponse:
 
     @classmethod
     def json(cls):
-        return cls._json
+        pass
+
+
+class MockedSupportedResponse(MockedResponse):
+    supported = None
+
+    @classmethod
+    def json(cls):
+        return cls.supported
+
+
+class MockedRatesResponse(MockedResponse):
+    rates = None
+
+    @classmethod
+    def json(cls):
+        return cls.rates
 
 
 @pytest.fixture
 def mock_response(monkeypatch: MonkeyPatch):
     def mocked_get(*args, **kwargs) -> Type[MockedResponse]:
-        MockedResponse.init(args[0], kwargs['params'])
-        return MockedResponse
+        if args[0] == current_app.config['FIXER_SUPPORTED_URL']:
+            MockedSupportedResponse.init(args[0], kwargs['params'])
+            return MockedSupportedResponse
+        else:
+            MockedRatesResponse.init(args[0], kwargs['params'])
+            return MockedRatesResponse
 
     monkeypatch.setattr(requests, 'get', mocked_get)
 
@@ -49,12 +68,12 @@ def test_get_supported_currencies(test_app: Flask, mock_response):
             'GBP': 'Great Britain Pound'
         }
     }
-    MockedResponse._json = json_data
+    MockedSupportedResponse.supported = json_data
 
     supported = CurrencyResource.get_supported_currencies()
     assert supported == json_data['symbols']
-    assert MockedResponse.url == current_app.config['FIXER_SUPPORTED_URL']
-    assert MockedResponse.params == {'access_key': current_app.config['FIXER_API_KEY']}
+    assert MockedSupportedResponse.url == current_app.config['FIXER_SUPPORTED_URL']
+    assert MockedSupportedResponse.params == {'access_key': current_app.config['FIXER_API_KEY']}
 
 
 def test_get_supported_currencies_error(test_app: Flask, mock_response):
@@ -68,7 +87,7 @@ def test_get_supported_currencies_error(test_app: Flask, mock_response):
             'info': info
         }
     }
-    MockedResponse._json = json_data
+    MockedSupportedResponse.supported = json_data
 
     with pytest.raises(FixerApiException) as e:
         CurrencyResource.get_supported_currencies()
@@ -78,37 +97,75 @@ def test_get_supported_currencies_error(test_app: Flask, mock_response):
     assert e.value.logger_msg == ref_exception.logger_msg
 
 
-@pytest.mark.parametrize('output_currencies, fixer_api_symbols', [
-    (['USD', 'CZK', 'EUR'], 'USD,CZK,EUR,GBP'),
-    (['RUB'], 'RUB,GBP'),
-    ([], '')
+@pytest.mark.parametrize('output_currencies, fixer_api_symbols, rates, result', [
+    (
+            ['USD', 'CZK', 'EUR'],
+            'USD,CZK,EUR,GBP',
+            {'USD': 1.138, 'CZK': 25.4183, 'EUR': 1, 'GBP': 0.896032},
+            {'USD': Decimal('1.270043927002606866931605697'), 'CZK': Decimal('28.36762526338344738236026116'),
+             'EUR': Decimal('1.116031570301060613312779630')}
+    ),
+    (
+            ['RUB'],
+            'RUB,GBP',
+            {'RUB': 72.06232, 'GBP': 0.896032, 'EUR': 1},
+            {'RUB': Decimal('80.42382414913753'), 'GBP': Decimal('0.896032')}
+    ),
+    (
+            [],
+            '',
+            {'USD': 1.138, 'CZK': 25.4183, 'EUR': 1, 'GBP': 0.896032, 'RUB': 72.06232},
+            {'USD': Decimal('1.270043927002606866931605697'), 'CZK': Decimal('28.36762526338344738236026116'),
+             'EUR': Decimal('1.116031570301060613312779630'), 'RUB': Decimal('80.42382414913753')}
+    )
 ])
-def test_get_currency_rates(test_app: Flask, mock_response, output_currencies: str, fixer_api_symbols: str):
-    json_data = {
+def test_get_currency_rates(
+        test_app: Flask,
+        mock_response,
+        output_currencies: str,
+        fixer_api_symbols: str,
+        rates: dict,
+        result: dict
+):
+    supported = {
         'success': True,
-        'rates': {
-            'USD': 1.138,
-            'GBP': 0.896032,
-            'EUR': 1,
-            'CZK': 25.4183
+        'symbols': {
+            'USD': 'United States Dollar',
+            'CZK': 'Czech Crown',
+            'GBP': 'Great Britain Pound',
+            'EUR': 'Euro',
+            'RUB': 'Russian Rouble'
         }
     }
-    MockedResponse._json = json_data
-
-    rates = CurrencyResource.get_currency_rates('GBP', output_currencies)
-    assert rates == {
-        'USD': Decimal('1.270043927002606866931605697'),
-        'CZK': Decimal('28.36762526338344738236026116'),
-        'EUR': Decimal('1.116031570301060613312779630')
+    json_data = {
+        'success': True,
+        'rates': rates
     }
-    assert MockedResponse.url == current_app.config['FIXER_LATEST_URL']
-    assert MockedResponse.params == {
+    MockedSupportedResponse.supported = supported
+    MockedRatesResponse.rates = json_data
+
+    result = CurrencyResource.get_currency_rates('GBP', output_currencies)
+    assert result == result
+    assert MockedSupportedResponse.url == current_app.config['FIXER_SUPPORTED_URL']
+    assert MockedSupportedResponse.params == {'access_key': current_app.config['FIXER_API_KEY']}
+    assert MockedRatesResponse.url == current_app.config['FIXER_LATEST_URL']
+    assert MockedRatesResponse.params == {
         'access_key': current_app.config['FIXER_API_KEY'],
         'symbols': fixer_api_symbols
     }
 
 
 def test_get_currency_rates_error(test_app: Flask, mock_response):
+    supported = {
+        'success': True,
+        'symbols': {
+            'USD': 'United States Dollar',
+            'CZK': 'Czech Crown',
+            'GBP': 'Great Britain Pound',
+            'EUR': 'Euro',
+            'RUB': 'Russian Rouble'
+        }
+    }
     url = current_app.config['FIXER_LATEST_URL']
     code = 202
     info = 'Some error info'
@@ -119,11 +176,33 @@ def test_get_currency_rates_error(test_app: Flask, mock_response):
             'info': info
         }
     }
-    MockedResponse._json = json_data
+    MockedSupportedResponse.supported = supported
+    MockedRatesResponse.rates = json_data
+
+    with pytest.raises(FixerApiException) as e:
+        CurrencyResource.get_currency_rates('GBP', ['EUR', 'USD'])
+
+    ref_exception = FixerApiException(url, code, info)
+    assert e.value.display_msg == ref_exception.display_msg
+    assert e.value.logger_msg == ref_exception.logger_msg
+
+
+def test_get_currency_rates_invalid_currency(test_app: Flask, mock_response):
+    supported = {
+        'success': True,
+        'symbols': {
+            'USD': 'United States Dollar',
+            'CZK': 'Czech Crown',
+            'GBP': 'Great Britain Pound',
+            'EUR': 'Euro',
+            'RUB': 'Russian Rouble'
+        }
+    }
+    MockedSupportedResponse.supported = supported
 
     with pytest.raises(UnknownCurrencyException) as e:
         CurrencyResource.get_currency_rates('GBP', ['SOME', 'NONSENSE'])
 
-    ref_exception = UnknownCurrencyException(url, code, info)
+    ref_exception = UnknownCurrencyException('SOME')
     assert e.value.display_msg == ref_exception.display_msg
     assert e.value.logger_msg == ref_exception.logger_msg

@@ -19,10 +19,10 @@ class UnknownSymbolException(CustomException):
 
 
 class UnknownCurrencyException(CustomException):
-    def __init__(self, url: str, code: int, info: str):
-        display_msg = (f'Unknown currency. Please, revisit your request (or visit '
+    def __init__(self, currency: str):
+        display_msg = (f'Unknown currency {currency}. Please, revisit your request (or visit '
                        f'`/supported_currencies` for list of supported currencies).')
-        logger_msg = f'An error occurred when requesting the Fixer API. URL: {url}, CODE: {code}, INFO: {info}'
+        logger_msg = f'Unknown currency: {currency}'
         super().__init__(display_msg, logger_msg)
 
 
