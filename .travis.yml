@@ -1,0 +1,22 @@
+dist: xenial
+language: python
+python:
+  - "3.7"
+services:
+  - docker
+
+branches:
+  only:
+  - master
+
+install:
+  - pip install -r requirements.txt
+script: pytest -vv
+
+before_deploy:
+  - docker build -t drahoja9/kiwi-currency-converter-api:latest .
+deploy:
+  provider: script
+  script: docker_push.sh
+  on:
+    branch: master
