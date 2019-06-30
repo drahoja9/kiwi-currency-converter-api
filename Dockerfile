@@ -3,9 +3,7 @@ FROM python:3.7.3-alpine
 COPY . /usr/src/currency_converter_api
 WORKDIR /usr/src/currency_converter_api
 
-RUN apk update && \
-    apk add gcc libffi-dev musl-dev && \
-    pip install --upgrade pip && \
+RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 ENV CORES_NUM=4
