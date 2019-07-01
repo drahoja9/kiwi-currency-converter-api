@@ -66,6 +66,18 @@ def test_default_values(test_client: FlaskClient):
     assert len(response.json['output']) == supported_len - 1
 
 
+def test_one_to_many_same_values(test_client: FlaskClient):
+    response = test_client.get('/currency_converter?input_currency=CZK&output_currency=EUR,EUR,RUB,EUR,EUR,RUB,EUR')
+    assert response.status_code == 200
+    assert response.json['input'] == {
+        'amount': 1.00,
+        'currency': 'CZK'
+    }
+    assert 'EUR' in response.json['output']
+    assert 'RUB' in response.json['output']
+    assert len(response.json['output']) == 2
+
+
 @pytest.mark.parametrize('params', [
     'input_currency=INVALID_CURRENCY',
     'input_currency=INVALID_CURRENCY&output_currency=CZK,USD,€',
