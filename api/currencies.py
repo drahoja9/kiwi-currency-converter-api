@@ -41,6 +41,7 @@ class CurrencyResource:
 
     @classmethod
     def get_supported_currencies(cls) -> Dict[str, str]:
+        # Headers for ETags -- caching the previous result and reducing the response payload
         headers = {
             'If-None-Match': cls.e_tag,
             'If-Modified-Since': cls.date
@@ -48,6 +49,8 @@ class CurrencyResource:
         url = app.config['FIXER_SUPPORTED_URL']
         try:
             response = cls._dispatch_request(url, {}, headers)
+            # Following lines of code won't be executed if there's a `CacheHitSignal` -- the stored values
+            # are still valid and they can be presented to the users
             cls.supported = response.json()['symbols']
             cls.e_tag = response.headers['Etag']
             cls.date = response.headers['Date']
@@ -63,6 +66,10 @@ class CurrencyResource:
         else:
             cls._check_currencies(input_currency)
         cls._check_currencies(*output_currencies)
+        # The free plan for Fixer API does not allow changing the base currency, therefore we always get rates
+        # for the EUR->(`output_currencies` + `input_currency`) conversion. For example we need the GBP->CZK
+        # conversion -- from the Fixer API we get EUR->GBP and EUR->CZK -- from this we can compute GBP->CZK as
+        # EUR->CZK / EUR->GBP
         response = cls._dispatch_request(url, {'symbols': ','.join(output_currencies)})
 
         def _from_eur(eur_to_target: str, eur_to_base: str) -> Decimal:

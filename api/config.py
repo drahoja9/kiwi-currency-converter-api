@@ -1,14 +1,3 @@
-"""
-
-Configuration module storing various variables for Flask app defined in api module (__init__.py).
-
-.. module:: config
-    :platform: Unix
-    :synopsis: Configuration module for Flask app defined in api module (__init__.py).
-
-.. moduleauthor:: Jakub Drahos <jakubdrahosJD@seznam.cz>
-
-"""
 import os
 
 

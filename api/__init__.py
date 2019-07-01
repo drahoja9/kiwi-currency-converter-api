@@ -1,12 +1,3 @@
-"""
-
-.. module::
-    :platform: Unix
-    :synopsis: The main Flask application using
-
-.. moduleauthor:: Jakub Drahos <jakubdrahosJD@seznam.cz>
-
-"""
 import os
 
 from flask import Flask
