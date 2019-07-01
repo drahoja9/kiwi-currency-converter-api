@@ -14,13 +14,20 @@ from api.exceptions import FixerApiException, UnknownCurrencyException
 
 
 class MockedResponse:
-    url = None
-    params = None
+    request_url = None
+    request_params = None
+    request_headers = None
+    status_code = 200
+    headers = {
+        'Etag': 'some-random-string',
+        'Date': '1970/01/01'
+    }
 
     @classmethod
-    def init(cls, url: str, params: dict):
-        cls.url = url
-        cls.params = params
+    def init(cls, url: str, params: dict, headers: dict = None):
+        cls.request_url = url
+        cls.request_params = params
+        cls.request_headers = headers
 
     @classmethod
     def json(cls):
@@ -43,11 +50,10 @@ class MockedRatesResponse(MockedResponse):
         return cls.rates
 
 
-@pytest.fixture
-def mock_response(monkeypatch: MonkeyPatch):
+def _mock_response(monkeypatch: MonkeyPatch):
     def mocked_get(*args, **kwargs) -> Type[MockedResponse]:
         if args[0] == current_app.config['FIXER_SUPPORTED_URL']:
-            MockedSupportedResponse.init(args[0], kwargs['params'])
+            MockedSupportedResponse.init(args[0], kwargs['params'], kwargs['headers'])
             return MockedSupportedResponse
         else:
             MockedRatesResponse.init(args[0], kwargs['params'])
@@ -56,10 +62,24 @@ def mock_response(monkeypatch: MonkeyPatch):
     monkeypatch.setattr(requests, 'get', mocked_get)
 
 
+@pytest.fixture
+def mock_response_ok(monkeypatch: MonkeyPatch):
+    _mock_response(monkeypatch)
+    MockedSupportedResponse.status_code = 200
+    MockedRatesResponse.status_code = 200
+
+
+@pytest.fixture
+def clean_currency_resource():
+    CurrencyResource.e_tag = None
+    CurrencyResource.date = None
+    CurrencyResource.supported = None
+
+
 # ----------------------------------------------------- Tests ---------------------------------------------------------
 
 
-def test_get_supported_currencies(test_app: Flask, mock_response):
+def test_get_supported_currencies(test_app: Flask, mock_response_ok, clean_currency_resource):
     json_data = {
         'success': True,
         'symbols': {
@@ -72,11 +92,48 @@ def test_get_supported_currencies(test_app: Flask, mock_response):
 
     supported = CurrencyResource.get_supported_currencies()
     assert supported == json_data['symbols']
-    assert MockedSupportedResponse.url == current_app.config['FIXER_SUPPORTED_URL']
-    assert MockedSupportedResponse.params == {'access_key': current_app.config['FIXER_API_KEY']}
+    assert MockedSupportedResponse.request_url == current_app.config['FIXER_SUPPORTED_URL']
+    assert MockedSupportedResponse.request_params == {'access_key': current_app.config['FIXER_API_KEY']}
+    assert MockedSupportedResponse.request_headers == {
+            'If-None-Match': None,
+            'If-Modified-Since': None
+    }
 
 
-def test_get_supported_currencies_error(test_app: Flask, mock_response):
+def test_get_supported_currencies_cache(test_app: Flask, mock_response_ok, clean_currency_resource):
+    json_data = {
+        'success': True,
+        'symbols': {
+            'USD': 'United States Dollar',
+            'CZK': 'Czech Crown',
+            'GBP': 'Great Britain Pound'
+        }
+    }
+    MockedSupportedResponse.supported = json_data
+
+    first_run = CurrencyResource.get_supported_currencies()
+    assert first_run == json_data['symbols']
+    assert MockedSupportedResponse.request_headers == {
+        'If-None-Match': None,
+        'If-Modified-Since': None
+    }
+    assert CurrencyResource.supported == json_data['symbols']
+    assert CurrencyResource.e_tag == 'some-random-string'
+    assert CurrencyResource.date == '1970/01/01'
+
+    MockedSupportedResponse.supported = {}
+    MockedSupportedResponse.headers['Etag'] = 'some-another-string'
+    MockedSupportedResponse.headers['Date'] = '2019/01/01'
+    MockedSupportedResponse.status_code = 304
+    second_run = CurrencyResource.get_supported_currencies()
+    assert second_run == json_data['symbols']
+    assert MockedSupportedResponse.request_headers == {
+        'If-None-Match': 'some-random-string',
+        'If-Modified-Since': '1970/01/01'
+    }
+
+
+def test_get_supported_currencies_error(test_app: Flask, mock_response_ok, clean_currency_resource):
     error_code = 123
     info = 'Testing error info'
     url = current_app.config['FIXER_SUPPORTED_URL']
@@ -121,7 +178,7 @@ def test_get_supported_currencies_error(test_app: Flask, mock_response):
 ])
 def test_get_currency_rates(
         test_app: Flask,
-        mock_response,
+        mock_response_ok,
         output_currencies: str,
         fixer_api_symbols: str,
         rates: dict,
@@ -146,16 +203,16 @@ def test_get_currency_rates(
 
     result = CurrencyResource.get_currency_rates('GBP', output_currencies)
     assert result == result
-    assert MockedSupportedResponse.url == current_app.config['FIXER_SUPPORTED_URL']
-    assert MockedSupportedResponse.params == {'access_key': current_app.config['FIXER_API_KEY']}
-    assert MockedRatesResponse.url == current_app.config['FIXER_LATEST_URL']
-    assert MockedRatesResponse.params == {
+    assert MockedSupportedResponse.request_url == current_app.config['FIXER_SUPPORTED_URL']
+    assert MockedSupportedResponse.request_params == {'access_key': current_app.config['FIXER_API_KEY']}
+    assert MockedRatesResponse.request_url == current_app.config['FIXER_LATEST_URL']
+    assert MockedRatesResponse.request_params == {
         'access_key': current_app.config['FIXER_API_KEY'],
         'symbols': fixer_api_symbols
     }
 
 
-def test_get_currency_rates_error(test_app: Flask, mock_response):
+def test_get_currency_rates_error(test_app: Flask, mock_response_ok):
     supported = {
         'success': True,
         'symbols': {
@@ -187,7 +244,7 @@ def test_get_currency_rates_error(test_app: Flask, mock_response):
     assert e.value.logger_msg == ref_exception.logger_msg
 
 
-def test_get_currency_rates_invalid_currency(test_app: Flask, mock_response):
+def test_get_currency_rates_invalid_currency(test_app: Flask, mock_response_ok):
     supported = {
         'success': True,
         'symbols': {

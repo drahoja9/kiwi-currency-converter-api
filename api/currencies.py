@@ -4,23 +4,33 @@ from typing import List, Dict
 from flask import current_app as app
 import requests
 
-from api.exceptions import FixerApiException, UnknownCurrencyException
+from api.exceptions import FixerApiException, UnknownCurrencyException, CacheHitSignal
 
 
 class CurrencyResource:
+    e_tag = None
+    date = None
+    supported = None
+
     @classmethod
-    def _dispatch_request(cls, url: str, params: Dict[str, str]) -> requests.Response:
+    def _dispatch_request(cls, url: str, params: Dict[str, str], headers: Dict[str, str] = None) -> requests.Response:
         access_key = app.config['FIXER_API_KEY']
-        response = requests.get(url, params={**params, 'access_key': access_key})
-        cls._check_response(response.json(), url)
+        response = requests.get(url, params={**params, 'access_key': access_key}, headers=headers)
+        cls._check_response(response, url)
         return response
 
     @classmethod
-    def _check_response(cls, response: dict, url: str):
-        if response['success'] is False:
-            code = response['error']['code']
-            info = response['error']['info']
-            raise FixerApiException(url, code, info)
+    def _check_response(cls, response: requests.Response, url: str):
+        if response.status_code == 200:
+            response = response.json()
+            if response['success'] is False:
+                code = response['error']['code']
+                info = response['error']['info']
+                raise FixerApiException(url, code, info)
+        elif response.status_code == 304:
+            raise CacheHitSignal
+        else:
+            raise FixerApiException(response.url, response.status_code, response.reason)
 
     @classmethod
     def _check_currencies(cls, *currencies: str):
@@ -31,9 +41,19 @@ class CurrencyResource:
 
     @classmethod
     def get_supported_currencies(cls) -> Dict[str, str]:
+        headers = {
+            'If-None-Match': cls.e_tag,
+            'If-Modified-Since': cls.date
+        }
         url = app.config['FIXER_SUPPORTED_URL']
-        response = cls._dispatch_request(url, {})
-        return response.json()['symbols']
+        try:
+            response = cls._dispatch_request(url, {}, headers)
+            cls.supported = response.json()['symbols']
+            cls.e_tag = response.headers['Etag']
+            cls.date = response.headers['Date']
+        except CacheHitSignal:
+            pass
+        return cls.supported
 
     @classmethod
     def get_currency_rates(cls, input_currency: str, output_currencies: List[str]) -> Dict[str, Decimal]:

@@ -31,3 +31,7 @@ class InvalidAmountException(CustomException):
         display_msg = f'Invalid parameter `amount`. {amount} is not a number'
         logger_msg = f'Could not convert string {amount} to float'
         super().__init__(display_msg, logger_msg)
+
+
+class CacheHitSignal(Exception):
+    pass
