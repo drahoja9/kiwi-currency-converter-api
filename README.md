@@ -1,4 +1,4 @@
-# kiwi-currency-converter-api
+# kiwi-currency-converter-api [![Build Status](https://travis-ci.com/drahoja9/kiwi-currency-converter-api.svg?token=AVpR3g2py5uyCcLQsLSs&branch=master)](https://travis-ci.com/drahoja9/kiwi-currency-converter-api)
 Currency converter API based on Python's Flask microframework using Fixer API (for currency rates).
 
 
