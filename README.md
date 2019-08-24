@@ -1,4 +1,4 @@
-# kiwi-currency-converter-api [![Build Status](https://travis-ci.com/drahoja9/kiwi-currency-converter-api.svg?token=AVpR3g2py5uyCcLQsLSs&branch=master)](https://travis-ci.com/drahoja9/kiwi-currency-converter-api)
+# Currency-converter-api [![Build Status](https://travis-ci.com/drahoja9/kiwi-currency-converter-api.svg?token=AVpR3g2py5uyCcLQsLSs&branch=master)](https://travis-ci.com/drahoja9/kiwi-currency-converter-api)
 Currency converter API based on Python's Flask microframework using Fixer API (for currency rates). Because of this, you need to register at https://fixer.io/signup/free (for free) and get their API key to be able to run this app. There's also an option to monitor the runtime of this API with Sentry.io, if you specify your Sentry DSN.
 
 ### How to run
